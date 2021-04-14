@@ -1,71 +1,50 @@
-from flask import Flask
-from flask import request
-from re import sub
-
-import nltk
-from sys import argv
-from io import open
-from os import path
-from heapq import nlargest
-from string import punctuation, printable
-
+from flask import Flask, request, jsonify
 app = Flask(__name__)
 
-@app.route("/")
-def index():
-    text = request.args.get("text", "")
-    print(text)
-    summarized = summarize_text(text)
-    return (
-        """<form action="" method="get">
-                <input type="text" name="text">
-                <input type="submit" value="Summarize">
-            </form>"""
-        + summarized
-    )
+@app.route('/getmsg/', methods=['GET'])
+def respond():
+    # Retrieve the name from url parameter
+    name = request.args.get("name", None)
 
-def summarize_text(text):
-    """Convert Celsius to Fahrenheit degrees."""
-    printable_ = set(printable)
-    modified_string = ''.join(filter(lambda x: x in printable, text))
-    print(modified_string)
-    return summarize(modified_string)
+    # For debugging
+    print(f"got name {name}")
 
-def summarize(text):
-    if text.count('. ') > 20:
-        length = int(round(text.count('. ') / 10, 0))
+    response = {}
+
+    # Check if user sent a name at all
+    if not name:
+        response["ERROR"] = "no name found, please send a name."
+    # Check if the user entered a number not a name
+    elif str(name).isdigit():
+        response["ERROR"] = "name can't be numeric."
+    # Now the user entered a valid name
     else:
-        length = 1
+        response["MESSAGE"] = f"Welcome {name} to our awesome platform!!"
 
-    nopunc = [char for char in text if char not in punctuation]
-    nopunc = ''.join(nopunc)
+    # Return the response in json format
+    return jsonify(response)
 
-    processed_text = [word for word in nopunc.split() if word.lower() not in nltk.corpus.stopwords.words('english')]
+@app.route('/post/', methods=['POST'])
+def post_something():
+    param = request.form.get('name')
+    print(param)
+    # You can add the test cases you made in the previous function, but in our case here you are just testing the POST functionality
+    if param:
+        return jsonify({
+            "Message": f"Welcome {name} to our awesome platform!!",
+            # Add this option to distinct the POST request
+            "METHOD" : "POST"
+        })
+    else:
+        return jsonify({
+            "ERROR": "no name found, please send a name."
+        })
 
-    word_freq = {}
-    for word in processed_text:
-        if word not in word_freq:
-            word_freq[word] = 1
-        else:
-            word_freq[word] = word_freq[word] + 1
+# A welcome message to test our server
+@app.route('/')
+def index():
+    return "<h1>Welcome to our server !!</h1>"
 
-    max_freq = max(word_freq.values())
-    for word in word_freq.keys():
-        word_freq[word] = (word_freq[word]/max_freq)
-
-    sent_list = nltk.sent_tokenize(text)
-    sent_score = {}
-    for sent in sent_list:
-        for word in nltk.word_tokenize(sent.lower()):
-            if word in word_freq.keys():
-                if sent not in sent_score.keys():
-                    sent_score[sent] = word_freq[word]
-                else:
-                    sent_score[sent] = sent_score[sent] + word_freq[word]
-
-    summary_sents = nlargest(length, sent_score, key=sent_score.get)
-    summary = " ".join(summary_sents)
-    return summary
-
-if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=8080, debug=True)
+if __name__ == '__main__':
+    # Threaded option to enable multiple instances for multiple user access support
+    app.run(threaded=True, port=5000)
